@@ -17,7 +17,7 @@ export default function RootLayout() {
   return (
     <ConvexAuthProvider client={convex} storage={secureStorage}>
       <Stack>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="index" options={{ title: "Home" }} />
       </Stack>
     </ConvexAuthProvider>
   );
