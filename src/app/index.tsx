@@ -1,10 +1,15 @@
-import { Text, View } from "react-native";
+import { Button, Text, View } from "react-native";
 import { SignIn } from "../components/sign-in";
 import { useConvexAuth } from "convex/react";
 import { Chat } from "../components/chat";
+import { TextInput } from "react-native";
+import { useState } from "react";
+import { useUserStore } from "../stores/user";
 
 export default function Index() {
   const { isAuthenticated } = useConvexAuth();
+  const [name, setName] = useState("");
+  const { setUser } = useUserStore();
   return (
     <>
       {isAuthenticated ? (
@@ -20,6 +25,13 @@ export default function Index() {
           }}
         >
           <SignIn />
+          <Text>or</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Enter your name"
+          />
+          <Button title="Set name" onPress={() => setUser({ name })} />
         </View>
       )}
     </>
