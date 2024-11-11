@@ -6,8 +6,7 @@ const schema = defineSchema({
   ...authTables,
   messages: defineTable({
     content: v.string(),
-    author: v.string(),
-    createdAt: v.number(),
+    userId: v.id("users"),
   }),
 });
 

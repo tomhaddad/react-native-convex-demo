@@ -1,3 +1,4 @@
+import { useConvex, useQuery } from "convex/react";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -10,45 +11,58 @@ import {
   Platform,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { api } from "../../convex/_generated/api";
+import { Doc } from "../../convex/_generated/dataModel";
 
-interface Message {
-  id: string;
-  text: string;
-  isSent: boolean;
-  timestamp: Date;
-  senderName: string;
-}
+const getRelativeTime = (timestamp: number) => {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  return "just now";
+};
 
 export const Chat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
+  const users = useQuery(api.users.getUsers);
+  const messages = useQuery(api.messages.getMessages);
+  const convex = useConvex();
+  const currentUser = useQuery(api.users.getAuthenticatedUser);
 
   const sendMessage = () => {
     if (inputText.trim() === "") return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText,
-      isSent: true,
-      timestamp: new Date(),
-      senderName: "You",
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText("");
-    flatListRef.current?.scrollToEnd();
+    convex
+      .mutation(api.messages.createMessage, {
+        content: inputText,
+      })
+      .then(() => {
+        setInputText("");
+        flatListRef.current?.scrollToEnd();
+      });
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
+  const renderMessage = ({ item }: { item: Doc<"messages"> }) => (
     <View
       style={[
         styles.messageBubble,
-        item.isSent ? styles.sentMessage : styles.receivedMessage,
+        item.userId === currentUser?._id
+          ? styles.sentMessage
+          : styles.receivedMessage,
       ]}
     >
-      <Text style={styles.senderName}>{item.senderName}</Text>
-      <Text style={styles.messageText}>{item.text}</Text>
+      <Text style={styles.senderName}>
+        {users?.find((u) => u._id === item.userId)?.name}
+      </Text>
+      <Text style={styles.messageText}>{item.content}</Text>
+      <Text style={styles.time}>
+        {new Date(item._creationTime).toLocaleTimeString()}
+      </Text>
     </View>
   );
 
@@ -61,7 +75,7 @@ export const Chat = () => {
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         contentContainerStyle={styles.messagesList}
       />
       <View style={styles.inputContainer}>
@@ -93,6 +107,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 16,
     marginVertical: 4,
+    paddingRight: 50,
   },
   sentMessage: {
     alignSelf: "flex-end",
@@ -107,7 +122,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 4,
     fontWeight: "500",
-    alignSelf: "flex-end",
   },
   messageText: {
     fontSize: 16,
@@ -147,5 +161,13 @@ const styles = StyleSheet.create({
   sendButtonText: {
     color: "white",
     fontWeight: "bold",
+  },
+  time: {
+    fontSize: 10,
+    color: "#666",
+    marginTop: 4,
+    position: "absolute",
+    right: 10,
+    bottom: 10,
   },
 });
