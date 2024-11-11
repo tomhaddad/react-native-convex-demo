@@ -1,8 +1,9 @@
 import { Text } from "react-native";
-import { useCurrentUser } from "../stores/user";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export const SignOut = () => {
-  const user = useCurrentUser();
+  const user = useQuery(api.users.getAuthenticatedUser);
 
   if (!user) {
     return null;
