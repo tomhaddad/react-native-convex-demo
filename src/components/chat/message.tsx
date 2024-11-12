@@ -64,7 +64,7 @@ export const Message = ({
             top: 10,
           }}
         >
-          {timeLeft}s
+          🗑️ {timeLeft}s
         </Text>
       )}
     </View>
