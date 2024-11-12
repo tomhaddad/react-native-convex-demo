@@ -9,22 +9,12 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { api } from "../../convex/_generated/api";
 import { Doc } from "../../convex/_generated/dataModel";
-
-const getRelativeTime = (timestamp: number) => {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return "just now";
-};
+import { Message } from "./chat/message";
 
 export const Chat = () => {
   const [inputText, setInputText] = useState("");
@@ -34,51 +24,51 @@ export const Chat = () => {
   const convex = useConvex();
   const currentUser = useQuery(api.users.getAuthenticatedUser);
 
+  const [expires, setExpires] = useState(false);
+
   const sendMessage = () => {
     if (inputText.trim() === "") return;
 
     convex
       .mutation(api.messages.createMessage, {
         content: inputText,
+        expires,
       })
       .then(() => {
         setInputText("");
+        setExpires(false);
         flatListRef.current?.scrollToEnd();
       });
   };
 
   const renderMessage = ({ item }: { item: Doc<"messages"> }) => (
-    <View
-      style={[
-        styles.messageBubble,
-        item.userId === currentUser?._id
-          ? styles.sentMessage
-          : styles.receivedMessage,
-      ]}
-    >
-      <Text style={styles.senderName}>
-        {users?.find((u) => u._id === item.userId)?.name}
-      </Text>
-      <Text style={styles.messageText}>{item.content}</Text>
-      <Text style={styles.time}>
-        {new Date(item._creationTime).toLocaleTimeString()}
-      </Text>
-    </View>
+    <Message item={item} currentUser={currentUser!} users={users!} />
   );
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <FlatList
+        style={{ flex: 1 }}
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.messagesList}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        onLayout={() => flatListRef.current?.scrollToEnd()}
       />
-      <View style={styles.inputContainer}>
+      <View
+        style={styles.inputContainer}
+        onLayout={() =>
+          Keyboard.addListener("keyboardDidShow", () => {
+            setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+          })
+        }
+      >
         <TextInput
           style={styles.input}
           value={inputText}
@@ -86,9 +76,24 @@ export const Chat = () => {
           placeholder="Type a message..."
           multiline
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Ionicons name="send" size={20} color="white" />
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={{
+              ...styles.expirationButton,
+              backgroundColor: expires ? "#25D366" : "#f0f2f5",
+            }}
+            onPress={() => setExpires(!expires)}
+          >
+            <Ionicons
+              name="timer-outline"
+              size={20}
+              color={expires ? "#FFFFFF" : "#999"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+            <Ionicons name="send" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -102,31 +107,6 @@ const styles = StyleSheet.create({
   messagesList: {
     padding: 16,
   },
-  messageBubble: {
-    maxWidth: "80%",
-    padding: 12,
-    borderRadius: 16,
-    marginVertical: 4,
-    paddingRight: 50,
-  },
-  sentMessage: {
-    alignSelf: "flex-end",
-    backgroundColor: "#dcf8c6",
-  },
-  receivedMessage: {
-    alignSelf: "flex-start",
-    backgroundColor: "white",
-  },
-  senderName: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-  messageText: {
-    fontSize: 16,
-    color: "#000",
-  },
   inputContainer: {
     flexDirection: "row",
     padding: 12,
@@ -134,7 +114,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: "#e0e0e0",
-    marginBottom: Platform.OS === "ios" ? 30 : 10,
+    marginBottom: Platform.OS === "ios" ? 30 : 0,
   },
   input: {
     flex: 1,
@@ -162,12 +142,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  time: {
-    fontSize: 10,
-    color: "#666",
-    marginTop: 4,
-    position: "absolute",
-    right: 10,
-    bottom: 10,
+  buttonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  expirationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    backgroundColor: "#f0f2f5",
+    marginBottom: Platform.OS === "ios" ? 0 : 2,
   },
 });
