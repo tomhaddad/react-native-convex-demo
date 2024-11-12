@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 // DEMO:: query
 export const getMessages = query({
@@ -18,10 +19,21 @@ export const createMessage = mutation({
     if (!userId) {
       throw new Error("User is not authenticated");
     }
-    return await ctx.db.insert("messages", {
+    const id = await ctx.db.insert("messages", {
       content: args.content,
       userId,
       expiresAt: args.expires ? Date.now() + 1000 * 30 : undefined,
     });
+    // DEMO:: scheduled action
+    await ctx.scheduler.runAfter(30000, internal.messages.expireMessage, {
+      id,
+    });
+  },
+});
+
+export const expireMessage = internalMutation({
+  args: { id: v.id("messages") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
   },
 });
