@@ -9,6 +9,7 @@ const schema = defineSchema({
     content: v.string(),
     userId: v.id("users"),
     expiresAt: v.optional(v.number()),
+    storageId: v.optional(v.id("_storage")),
   }),
 });
 

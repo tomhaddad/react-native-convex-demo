@@ -13,11 +13,16 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { api } from "../../convex/_generated/api";
-import { Doc } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { Message } from "./chat/message";
+import * as ImagePicker from "expo-image-picker";
 
 export const Chat = () => {
   const [inputText, setInputText] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [inputStorageId, setInputStorageId] = useState<
+    Id<"_storage"> | undefined
+  >(undefined);
   const flatListRef = useRef<FlatList>(null);
   const users = useQuery(api.users.getUsers);
   const messages = useQuery(api.messages.getMessages);
@@ -33,10 +38,12 @@ export const Chat = () => {
       .mutation(api.messages.createMessage, {
         content: inputText,
         expires,
+        storageId: inputStorageId,
       })
       .then(() => {
         setInputText("");
         setExpires(false);
+        setInputStorageId(undefined);
         flatListRef.current?.scrollToEnd();
       });
   };
@@ -44,6 +51,40 @@ export const Chat = () => {
   const renderMessage = ({ item }: { item: Doc<"messages"> }) => (
     <Message item={item} currentUser={currentUser!} users={users!} />
   );
+
+  const handleImageUpload = async () => {
+    setInputStorageId(undefined);
+    // Request permission
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("You need to allow access to your photos to share images.");
+      return;
+    }
+
+    // Pick image - Simplified options
+    const result = await ImagePicker.launchImageLibraryAsync();
+    setImageUploading(true);
+
+    if (!result.canceled) {
+      // Generate upload URL
+      const uploadUrl = await convex.mutation(api.messages.generateUploadUrl);
+
+      // Upload the image
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body: await fetch(result.assets[0].uri).then((res) => res.blob()),
+      });
+
+      if (!response.ok) {
+        console.error(response);
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+      const res = await response.json();
+      setInputStorageId(res.storageId);
+    }
+    setImageUploading(false);
+  };
 
   return (
     <KeyboardAvoidingView
@@ -77,6 +118,22 @@ export const Chat = () => {
           multiline
         />
         <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={{
+              ...styles.imageButton,
+              backgroundColor: inputStorageId ? "#25D366" : "#f0f2f5",
+            }}
+            onPress={() => {
+              if (imageUploading || inputStorageId) return;
+              handleImageUpload();
+            }}
+          >
+            <Ionicons
+              name={imageUploading ? "cloud-upload-outline" : "image-outline"}
+              size={20}
+              color={inputStorageId ? "#FFFFFF" : "#999"}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={{
               ...styles.expirationButton,
@@ -148,6 +205,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   expirationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    backgroundColor: "#f0f2f5",
+    marginBottom: Platform.OS === "ios" ? 0 : 2,
+  },
+  imageButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -1,6 +1,8 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export const Message = ({
   item,
@@ -14,6 +16,9 @@ export const Message = ({
   const [timeLeft, setTimeLeft] = useState<number>(
     item.expiresAt ? Math.round((item.expiresAt - Date.now()) / 1000) : 0
   );
+  const imageUrl = item.storageId
+    ? useQuery(api.messages.getImageUrl, { storageId: item.storageId })
+    : null;
   useEffect(() => {
     if (!item.expiresAt) return;
 
@@ -42,6 +47,12 @@ export const Message = ({
         {users?.find((u) => u._id === item.userId)?.name}
       </Text>
       <Text style={styles.messageText}>{item.content}</Text>
+      {imageUrl && (
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ width: 200, height: 200, borderRadius: 8, marginTop: 8 }}
+        />
+      )}
       <Text style={styles.time}>
         {new Date(item._creationTime).toLocaleTimeString()}
       </Text>
