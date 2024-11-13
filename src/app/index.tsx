@@ -21,7 +21,7 @@ export default function Index() {
           {features?.chatEnabled ? (
             <Chat />
           ) : (
-            <Text>Chat will be enabled after the demo</Text>
+            <Text>Chat will be enabled after the Convex intro</Text>
           )}
         </View>
       ) : (
