@@ -5,6 +5,9 @@ import { v } from "convex/values";
 // DEMO:: schema
 const schema = defineSchema({
   ...authTables,
+  features: defineTable({
+    chatEnabled: v.boolean(),
+  }),
   messages: defineTable({
     content: v.string(),
     userId: v.id("users"),
